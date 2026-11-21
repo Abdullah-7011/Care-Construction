@@ -1,0 +1,46 @@
+name: Extract zip and force-add ignored project files
+
+on:
+  push:
+    paths:
+      - 'care-construction.zip'
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: List zip contents and extract
+        run: |
+          if [ ! -f care-construction.zip ]; then echo "No zip file found"; exit 0; fi
+          echo "=== ZIP CONTENTS ==="
+          unzip -l care-construction.zip
+          unzip -o -q care-construction.zip
+          rm care-construction.zip
+          shopt -s dotglob
+          mv care-construction/* .
+          rmdir care-construction || true
+          rm -f .github/workflows/list-zip.yml
+          echo "=== IGNORED FILES IN EXTRACTED TREE ==="
+          git ls-files --others --ignored --exclude-standard || true
+          echo "=== STATUS BEFORE FORCE-ADD ==="
+          git status --short || true
+      - name: Force-add ignored project files except local and generated files
+        run: |
+          git add -A
+          git ls-files --others --ignored --exclude-standard -z | while IFS= read -r -d '' f; do
+            case "$f" in
+              *local.properties|*/build/*|*/.dart_tool/*|*/ios/Flutter/ephemeral/*|*/.gradle/*|*/captures/*|*.keystore|*.jks|*key.properties|*/Generated.xcconfig|*/GeneratedPluginRegistrant.*|*/generated_plugin_registrant.dart) echo "skipping $f" ;;
+              *) echo "force-adding $f"; git add -f "$f" ;;
+            esac
+          done
+          echo "=== STATUS AFTER FORCE-ADD ==="
+          git status --short || true
+          git config user.name "Abdullah-7011"
+          git config user.email "abdullah-7011@users.noreply.github.com"
+          git add -A
+          git commit -m "Add remaining project files from zip (including pubspec.lock)" || echo "Nothing to commit"
+          git push
