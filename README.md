@@ -36,6 +36,3 @@ flutter pub get
 flutter run
 ```
 
-## Live portfolio
-
-https://abdullah-7011.github.io/
